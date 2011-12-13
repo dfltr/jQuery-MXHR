@@ -1,0 +1,57 @@
+This is a rewrite of the original work Jordan Alperin (https://github.com/alpjor) and I did on MXHR at Digg. It's now all pretty and jQuery-ified and is actually a bit less likely to explode in your face if you use it.
+
+Usage is modeled after $.ajax for simplicity's sake, and callbacks are set per content-type instead of per request state (i.e. 'text/html' instead of success, error, complete). Like so:
+
+$.mxhr({
+    url: '/foo/bar.mxhr',
+    type: 'POST',
+    data: {
+      'this is a': 'post var'
+    },
+    'application/json': function(data) {
+        data = $.parseJSON(data);
+
+        console.log(data);
+    }
+});
+
+Responses must conform to RFC1341 http://www.w3.org/Protocols/rfc1341/7_2_Multipart.html
+
+This means that:
+
+1. The Content-Type header must be set to "multipart/mixed"
+2. There may be a boundary argument on the Content-Type header, e.g. "multipart/mixed; boundary=wharrgarbl"
+3. If there is no boundary argument, the boundary string is assumed to be "--|||"
+4. There must be a line after the boundary string that specifies the Content-Type of each part. Note that MXHR doesn't yet support leaving the header line blank to default to "text/plain"
+5. Bonus spec-breaking fun time: You can specify multiple header lines per part with MXHR
+
+
+Here's a sample request and response for a Mustache template/view combo.
+
+Request:
+
+var template;
+$.mxhr({
+    url: '/fictonal/bsg/endpoint.mxhr',
+    type: 'GET',
+    'text/html': function(data) {
+        template = data;
+    },
+    'application/json': function(data) {
+        view = $.parseJSON(data);
+        
+        //Yes, this is a race condition if the server sends the 'application/json' part first. I'm working on it.
+        console.log(Mustache.to_html(template, view));
+    }
+});
+
+
+Response:
+
+--|||
+Content-Type: text/html
+Hello {{world}}.
+--|||
+Content-Type: application/json
+{"world": "New Caprica"}
+--|||--
